@@ -1,0 +1,27 @@
+name = "barramento"
+main = "src/index.ts"
+compatibility_date = "2023-11-21"
+workers_dev = true
+
+[site]
+bucket = "www"
+
+[[queues.producers]]
+queue = "barramento"
+binding = "barramentomq"
+
+[[queues.consumers]]
+queue = "barramento"
+max_batch_size = 1
+
+[[r2_buckets]]
+preview_bucket_name = "barramento"
+bucket_name = "barramento"
+binding = "barramentor2"
+
+[durable_objects]
+bindings = [{ name = "barramentoDO", class_name = "BarramentoDO" }]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["BarramentoDO"]

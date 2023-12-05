@@ -1,0 +1,19 @@
+{
+  "name": "barramento",
+  "version": "0.0.1",
+  "license": "MIT",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "moment-timezone": "0.5.43"
+  },
+	"devDependencies": {
+		"@cloudflare/workers-types": "4.x.x",
+		"typescript": "5.0.x",
+		"wrangler": "3.7.x"
+	}
+}
