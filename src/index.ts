@@ -1,12 +1,14 @@
+// imports
+
 //region assets
 import {getAssetFromKV} from '@cloudflare/kv-asset-handler';
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST';
-const assetManifest = JSON.parse(manifestJSON);
-//endregion
-
 import moment from 'moment-timezone';
 import 'moment/locale/pt-br';
+
+const assetManifest = JSON.parse(manifestJSON);
+//endregion
 
 export {BarramentoDO} from './BarramentoDO';
 
@@ -19,83 +21,93 @@ export default {
         const dao: DurableObjectStub = env.barramentoDO.get(env.barramentoDO.idFromName('BarramentoDO'));
         return (await dao.fetch(request.url)).text();
     },
-    //async scheduled(event, env, ctx)
+    //async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {},
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-        try {
-            if (request.method === 'OPTIONS') {
-                return HTTP_OK();
-            } else {
+        const data: ResponseBarramento = {persist: false, steps: []};
 
-                //region Backup dos requests
-                const id = await this.nextId(request, env, ctx);
-                const url = request.url;
-                const file = `${now}-${id}-request.txt`;
-                const fileResponse = `${now}-${id}-response.txt`;
-                const data = await request.text();
-                await env.barramentor2.put(file, data);
-                // Nao esta enviando para a fila porque nao tem o que fazer com isso
-                //await env.tmsback.send({ url, id, file } as MQMessage, { contentType: 'json' });
-                let dataResponse = "";
-                //endregion
+        if (request.method === 'OPTIONS') {
+            return HTTP_OK();
+        } else {
+            try {
 
-                try {
+                data.url = new URL(request.url);
+                data.body = await request.text();
+                data.headers = Object.fromEntries(request.headers.entries());
+                data.method = request.method;
 
-                    if (request.url.indexOf( '/test') !== -1 ) {
-                        return new Response(
+                switch (data.url.pathname) {
+                    case '/test': {
+                        data.persist = true;
+                        data.steps.push('test');
+                        data.response = new Response(
                             JSON.stringify({
-                                id,
-                            })
-                            , {status: 200});
-                    } else if (request.method === 'GET') {
-
-                        //region GET
-                        try {
-                            return await getAssetFromKV(
-                                // @ts-ignore
-                                {
-                                    request,
-                                    waitUntil(promise) {
-                                        return ctx.waitUntil(promise);
-                                    },
+                                now,
+                            }),
+                            {
+                                headers: {
+                                    'Content-Type': 'application/json',
                                 },
-                                {
-                                    // @ts-ignore
-                                    ASSET_NAMESPACE: env.__STATIC_CONTENT,
-                                    ASSET_MANIFEST: assetManifest,
-                                },
-                            );
-                        } catch (e) {
-                            // if (e instanceof NotFoundError) {
-                            // } else if (e instanceof MethodNotAllowedError) {
-                        }
-                        //endregion
-
+                                status: 200,
+                            });
+                        return data.response;
                     }
+                }
 
-                } finally {
+                // Outra formas de fazer
+                // if (url.pathname.startsWith('/api/')) {
+                // return apiRouter.handle(request);
+                // }
 
-                    //region Backup das respostas
-                    await env.barramentor2.put(fileResponse, dataResponse);
+                if (request.method === 'GET') {
+                    //region GET
+                    try {
+                        data.persist = false;
+                        return await getAssetFromKV(
+                            // @ts-ignore
+                            {
+                                request,
+                                waitUntil(promise) {
+                                    return ctx.waitUntil(promise);
+                                },
+                            },
+                            {
+                                // @ts-ignore
+                                ASSET_NAMESPACE: env.__STATIC_CONTENT,
+                                ASSET_MANIFEST: assetManifest,
+                            },
+                        );
+                    } catch (e) {
+                        // if (e instanceof NotFoundError) {
+                        // } else if (e instanceof MethodNotAllowedError) {
+                    }
+                    //endregion
+                }
+
+            } catch (e) {
+                console.error('FATAL', e, e.stack);
+                data.response = HTTP_UNPROCESSABLE_ENTITY();
+            } finally {
+                if (data.persist) {
+
+                    //region Request / Response
+                    const id = await this.nextId(request, env, ctx);
+                    const file = `${now}-${id}.txt`;
+                    await env.barramentor2.put(file, JSON.stringify(data));
+                    await env.barramentomq.send({url: request.url, id, file} as MQMessage, {contentType: 'json'});
                     //endregion
 
                 }
-
             }
-
-            return HTTP_CREATED();
-        } catch (e) {
-            console.error('FATAL', e, e.stack);
         }
-        return HTTP_UNPROCESSABLE_ENTITY();
-    }
-    ,
+        return data.response ? data.response : HTTP_UNPROCESSABLE_ENTITY();
+    },
     async queue(batch: MessageBatch<MQMessage>, env: Env): Promise<void> {
         for (const msg of batch.messages) {
             try {
 
                 console.log('queue', msg.body.id, msg.body.url, msg.body.file);
 
-                console.log(await (await env.barramentor2.get(msg.body.file)).text());
+                //console.log(await (await env.barramentor2.get(msg.body.file)).text());
 
             } catch (e) {
                 console.error('queue', e, e.stack);
