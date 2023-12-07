@@ -22,6 +22,7 @@ export default {
         return (await dao.fetch(request.url)).text();
     },
     //async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {},
+    //async email(email: EmailMessage, env: Env, ctx: ExecutionContext) {},
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
         const data: ResponseBarramento = {persist: false, steps: []};
 
@@ -59,6 +60,7 @@ export default {
                 // }
 
                 if (request.method === 'GET') {
+
                     //region GET
                     try {
                         data.persist = false;
@@ -81,6 +83,7 @@ export default {
                         // } else if (e instanceof MethodNotAllowedError) {
                     }
                     //endregion
+
                 }
 
             } catch (e) {
@@ -102,10 +105,10 @@ export default {
         return data.response ? data.response : HTTP_UNPROCESSABLE_ENTITY();
     },
     async queue(batch: MessageBatch<MQMessage>, env: Env): Promise<void> {
-        for (const msg of batch.messages) {
+        for (const {ack, body} of batch.messages) {
             try {
 
-                console.log('queue', msg.body.id, msg.body.url, msg.body.file);
+                console.log('queue', body.id, body.url, body.file);
 
                 //console.log(await (await env.barramentor2.get(msg.body.file)).text());
 
@@ -116,7 +119,7 @@ export default {
                 // } catch (e) {
                 // }
             } finally {
-                msg.ack();
+                ack();
             }
         }
     }
