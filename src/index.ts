@@ -105,21 +105,22 @@ export default {
         return data.response ? data.response : HTTP_UNPROCESSABLE_ENTITY();
     },
     async queue(batch: MessageBatch<MQMessage>, env: Env): Promise<void> {
-        for (const {ack, body} of batch.messages) {
+        console.log('queue:', batch.queue);
+        for (const msg of batch.messages) {
             try {
 
-                console.log('queue', body.id, body.url, body.file);
+                console.log('queue msg:', msg.body.id, msg.body.url, msg.body.file);
 
                 //console.log(await (await env.barramentor2.get(msg.body.file)).text());
 
             } catch (e) {
-                console.error('queue', e, e.stack);
+                console.error('queue err:', e, e.stack);
                 // try {
                 // 	await env.tmsbackr2.delete(msg.body.id + ".txt");
                 // } catch (e) {
                 // }
             } finally {
-                ack();
+                msg.ack();
             }
         }
     }
