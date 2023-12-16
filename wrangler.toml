@@ -2,6 +2,7 @@ name = "barramento"
 main = "src/index.ts"
 compatibility_date = "2023-11-21"
 workers_dev = true
+account_id = "4f296275a5fa3d5c36343151790e96d3"
 
 [site]
 bucket = "www"

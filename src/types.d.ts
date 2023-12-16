@@ -1,4 +1,3 @@
-
 interface MQMessage {
     id: string;
     url: string;
@@ -8,9 +7,10 @@ interface MQMessage {
 interface ResponseBarramento {
     persist: boolean;
     steps: string[];
+    url?: URL;
     body?: string;
     headers?: any;
     method?: string;
-    url?: URL;
-    response?: Response;
+    response?: string;
+    status?: number;
 }
