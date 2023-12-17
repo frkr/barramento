@@ -1,6 +1,6 @@
-import {getAssetFromKV} from '@cloudflare/kv-asset-handler';
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST';
+import {getAssetFromKV} from '@cloudflare/kv-asset-handler';
 import moment from 'moment-timezone';
 import 'moment/locale/pt-br';
 
@@ -20,7 +20,7 @@ export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
         const url = new URL(request.url);
         const pathname = url.pathname;
-        const data: ResponseBarramento = {persist: false, url, method: request.method, steps: []};
+        const data: ResponseBarramento = {persist: true, url, method: request.method, steps: []};
         const files: ArrayBuffer[] = [];
 
         if (request.method === 'OPTIONS') {
@@ -28,6 +28,7 @@ export default {
         } else {
 
             if (request.method === 'GET' && !pathname.startsWith('/api/')) {
+                data.persist = false;
 
                 //region GET
                 try {
@@ -65,14 +66,12 @@ export default {
                     // XXX Provavelmente será usado apenas metodos dentro desse Switch
                     switch (step) {
                         case 'test': {
-                            data.persist = true;
                             data.response = JSON.stringify({
                                 now,
                             });
                             break;
                         }
                         case 'file': {
-                            data.persist = true;
 
                             const form = await request.formData();
 
@@ -99,6 +98,8 @@ export default {
 
                 } catch (e) {
                     console.error('FATAL', e, e.stack);
+                    data.response = e + e.stack;
+                    data.status = 500;
                 } finally {
                     if (data.persist) {
 
