@@ -9,8 +9,25 @@
 
 <body>
 <h1>Hello</h1>
+
+<h3>Exemplo de Upload</h3>
+
+<form action="/api/file" method="post" enctype="multipart/form-data">
+    <div>
+        <label for="profile_pic">Choose file to upload</label>
+        <input
+                type="file"
+                id="profile_pic"
+                name="profile_pic"
+        />
+    </div>
+    <div>
+        <button>Submit</button>
+    </div>
+</form>
+
 <script>
-    fetch("/test", {
+    fetch("/api/test", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"

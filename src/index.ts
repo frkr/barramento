@@ -1,16 +1,14 @@
-export {BarramentoDO} from './BarramentoDO';
-
 import {getAssetFromKV} from '@cloudflare/kv-asset-handler';
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST';
 import moment from 'moment-timezone';
 import 'moment/locale/pt-br';
 
+export {BarramentoDO} from './BarramentoDO';
+
 const assetManifest = JSON.parse(manifestJSON);
 
-
 const timeZone = 'America/Sao_Paulo';
-const now = moment.tz(timeZone).format('YYYYMMDDHHmmss');
 
 export default {
     async nextId(request: Request, env: Env, ctx: ExecutionContext): Promise<string> {
@@ -23,6 +21,7 @@ export default {
         const url = new URL(request.url);
         const pathname = url.pathname;
         const data: ResponseBarramento = {persist: false, url, method: request.method, steps: []};
+        const files: ArrayBuffer[] = [];
 
         if (request.method === 'OPTIONS') {
             return HTTP_OK();
@@ -32,7 +31,6 @@ export default {
 
                 //region GET
                 try {
-                    data.persist = false;
                     return await getAssetFromKV(
                         // @ts-ignore
                         {
@@ -55,14 +53,14 @@ export default {
 
             } else {
 
+                const now = moment.tz(timeZone).format('YYYYMMDDHHmmss');
+
                 let step = data.url.pathname.split('/').pop();
                 data.steps.push(step);
 
                 try {
 
-                    data.body = await request.text();
                     data.headers = Object.fromEntries(request.headers.entries());
-
 
                     // XXX Provavelmente será usado apenas metodos dentro desse Switch
                     switch (step) {
@@ -71,7 +69,26 @@ export default {
                             data.response = JSON.stringify({
                                 now,
                             });
+                            break;
                         }
+                        case 'file': {
+                            data.persist = true;
+
+                            const form = await request.formData();
+
+                            const file = await (form.get('profile_pic') as unknown as File).arrayBuffer();
+                            files.push(file);
+
+                            data.body = JSON.stringify({
+                                ...Object.fromEntries(form.entries()),
+                            });
+
+                            data.response = 'OK';
+                            break;
+                        }
+                    }
+                    if (!data.body) {
+                        data.body = await request.text();
                     }
 
                     // Outra formas de fazer
@@ -89,6 +106,11 @@ export default {
                         const id = await this.nextId(request, env, ctx);
                         const file = `${now}-${id}.txt`;
                         await env.barramentor2.put(file, JSON.stringify(data));
+
+                        for (let i = 0; i < files.length; i++) {
+                            await env.barramentor2.put(`${now}-${id}-${i}.txt`, files[0]);
+                        }
+
                         await env.barramentomq.send({url: request.url, id, file} as MQMessage, {contentType: 'json'});
                         //endregion
 
@@ -112,8 +134,6 @@ export default {
 
                 const data = msg.body as MQMessage;
                 console.log('queue msg:', data.id, data.url, data.file);
-                //console.log(await (await env.wchatr2.get(msg.body.file)).text());
-
                 const contentRaw = await (await env.barramentor2.get(msg.body.file)).text();
 
                 try {
@@ -124,6 +144,16 @@ export default {
                         case 'test': {
 
                             console.log("test", contentRaw)
+
+                            break;
+                        }
+                        case 'file': {
+
+                            console.log("file",
+                                await env.barramentor2.list({
+                                    prefix: data.file.split('.')[0] + "-",
+                                })
+                            );
 
                             break;
                         }
