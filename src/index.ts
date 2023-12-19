@@ -1,20 +1,10 @@
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST';
 import {getAssetFromKV} from '@cloudflare/kv-asset-handler';
-import moment from 'moment-timezone';
-import 'moment/locale/pt-br';
-
-export {BarramentoDO} from './BarramentoDO';
 
 const assetManifest = JSON.parse(manifestJSON);
 
-const timeZone = 'America/Sao_Paulo';
-
 export default {
-    async nextId(request: Request, env: Env, ctx: ExecutionContext): Promise<string> {
-        const dao: DurableObjectStub = env.barramentoDO.get(env.barramentoDO.idFromName('BarramentoDO'));
-        return (await dao.fetch(request.url)).text();
-    },
     //async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {},
     //async email(email: EmailMessage, env: Env, ctx: ExecutionContext) {},
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -54,8 +44,6 @@ export default {
 
             } else {
 
-                const now = moment.tz(timeZone).format('YYYYMMDDHHmmss');
-
                 let step = data.url.pathname.split('/').pop();
                 data.steps.push(step);
 
@@ -67,7 +55,7 @@ export default {
                     switch (step) {
                         case 'test': {
                             data.response = JSON.stringify({
-                                now,
+                                now: crypto.randomUUID(),
                             });
                             break;
                         }
@@ -103,13 +91,13 @@ export default {
                 } finally {
                     if (data.persist) {
 
+                        const id = crypto.randomUUID();
                         //region Request / Response
-                        const id = await this.nextId(request, env, ctx);
-                        const file = `${now}-${id}.txt`;
+                        const file = `${id}.txt`;
                         await env.barramentor2.put(file, JSON.stringify(data));
 
                         for (let i = 0; i < files.length; i++) {
-                            await env.barramentor2.put(`${now}-${id}-${i}.txt`, files[0]);
+                            await env.barramentor2.put(`${id}-${i}.txt`, files[0]);
                         }
 
                         await env.barramentomq.send({url: request.url, id, file} as MQMessage, {contentType: 'json'});

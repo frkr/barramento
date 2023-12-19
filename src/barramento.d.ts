@@ -1,3 +1,10 @@
+interface Env {
+
+    barramentomq: Queue<MQMessage>;
+    barramentor2: R2Bucket;
+
+}
+
 interface MQMessage {
     id: string;
     url: string;

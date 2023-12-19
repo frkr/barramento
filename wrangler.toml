@@ -19,10 +19,3 @@ max_batch_size = 1
 preview_bucket_name = "barramento"
 bucket_name = "barramento"
 binding = "barramentor2"
-
-[durable_objects]
-bindings = [{ name = "barramentoDO", class_name = "BarramentoDO" }]
-
-[[migrations]]
-tag = "v1" # Should be unique for each entry
-new_classes = ["BarramentoDO"]
