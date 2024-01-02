@@ -55,7 +55,7 @@ export default {
                     switch (step) {
                         case 'test': {
                             data.response = JSON.stringify({
-                                now: crypto.randomUUID(),
+                                now: await randomHEX(),
                             });
                             break;
                         }
@@ -91,7 +91,7 @@ export default {
                 } finally {
                     if (data.persist) {
 
-                        const id = crypto.randomUUID();
+                        const id = await randomHEX();
                         //region Request / Response
                         const file = `${id}.txt`;
                         await env.barramentor2.put(file, JSON.stringify(data));
@@ -124,6 +124,7 @@ export default {
                 const data = msg.body as MQMessage;
                 console.log('queue msg:', data.id, data.url, data.file);
                 const contentRaw = await (await env.barramentor2.get(msg.body.file)).text();
+
 
                 try {
                     //const content = JSON.parse(contentRaw);
@@ -171,3 +172,14 @@ export default {
 const HTTP_OK = () => new Response('200 Ok', {status: 200});
 const HTTP_CREATED = () => new Response('201 Created', {status: 201});
 const HTTP_UNPROCESSABLE_ENTITY = () => new Response('422 Unprocessable Content', {status: 422});
+
+async function randomHEX(size = 16) {
+
+    return Array.from(
+        new Uint8Array(
+            await crypto.subtle.digest("sha-512",
+                crypto.getRandomValues(new Uint8Array(size))
+            ))).map(b => b.toString(16).padStart(2, "0"))
+        .join("")
+
+}
